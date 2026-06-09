@@ -13,47 +13,47 @@
 - [x] 1.1 Create `docs/ADR.md` -- architecture decision record
 - [x] 1.2 Create `docs/PLAN.md` -- this file
 - [x] 1.3 Create `AGENTS.md` -- agent self-reference instructions
-- [ ] 1.4 Create `README.md` -- project overview for humans
-- [ ] 1.5 Create `docs/security-model.md` -- detailed security boundary doc
-- [ ] 1.6 Create `docs/architecture.md` -- mermaid diagrams
+- [x] 1.4 Create `README.md` -- project overview for humans
+- [x] 1.5 Create `docs/security-model.md` -- detailed security boundary doc
+- [x] 1.6 Create `docs/architecture.md` -- mermaid diagrams
 
 ## Phase 2: Attack Payloads
 
-- [ ] 2.1 Create `attacks/README.md` -- safety disclaimers
-- [ ] 2.2 Create `attacks/attack1-prompt-injection/malicious.patch`
-- [ ] 2.3 Create `attacks/attack1-prompt-injection/task-prompt.txt`
-- [ ] 2.4 Create `attacks/attack1-prompt-injection/README.md`
-- [ ] 2.5 Download/create `attacks/attack2-container-escape/copy_fail_exp.py`
-- [ ] 2.6 Create `attacks/attack2-container-escape/verify-escape.sh`
-- [ ] 2.7 Create `attacks/attack2-container-escape/README.md`
+- [x] 2.1 Create `attacks/README.md` -- safety disclaimers
+- [x] 2.2 Create `attacks/attack1-prompt-injection/malicious.patch`
+- [x] 2.3 Create `attacks/attack1-prompt-injection/task-prompt.txt`
+- [x] 2.4 Create `attacks/attack1-prompt-injection/README.md`
+- [x] 2.5 Download/create `attacks/attack2-container-escape/copy_fail_exp.py`
+- [x] 2.6 Create `attacks/attack2-container-escape/verify-escape.sh`
+- [x] 2.7 Create `attacks/attack2-container-escape/README.md`
 
 ## Phase 3: Container Images
 
-- [ ] 3.1 Create `images/agent-sandbox/Dockerfile`
-- [ ] 3.2 Create `images/agent-sandbox/opencode.json`
-- [ ] 3.3 Copy exploit into `images/agent-sandbox/copy_fail_exp.py`
-- [ ] 3.4 Create `images/attacker-listener/Dockerfile`
-- [ ] 3.5 Create `images/attacker-listener/listener.py`
+- [x] 3.1 Create `images/agent-sandbox/Dockerfile`
+- [x] 3.2 Create `images/agent-sandbox/opencode.json`
+- [x] 3.3 Copy exploit into `images/agent-sandbox/copy_fail_exp.py`
+- [x] 3.4 Create `images/attacker-listener/Dockerfile`
+- [x] 3.5 Create `images/attacker-listener/listener.py`
 
 ## Phase 4: Infrastructure Manifests
 
-- [ ] 4.1 Create `infra/README.md` -- setup instructions
-- [ ] 4.2 Create `infra/kata-operator.yaml` or operator subscription YAML
-- [ ] 4.3 Create `infra/kata-runtimeclass.yaml`
-- [ ] 4.4 Create `infra/verify-kernel.sh`
+- [x] 4.1 Create `infra/README.md` -- setup instructions
+- [x] 4.2 Create `infra/kata-operator.yaml` or operator subscription YAML
+- [x] 4.3 Create `infra/kata-runtimeclass.yaml`
+- [x] 4.4 Create `infra/verify-kernel.sh`
 
 ## Phase 5: Kubernetes Deployment Manifests
 
-- [ ] 5.1 Create `deploy/namespace.yaml`
-- [ ] 5.2 Create `deploy/openshell-helm-values.yaml`
-- [ ] 5.3 Create `deploy/openshell-policy.yaml`
-- [ ] 5.4 Create `deploy/pod-kata-only.yaml`
-- [ ] 5.5 Create `deploy/pod-openshell-only.yaml`
-- [ ] 5.6 Create `deploy/pod-dual.yaml`
-- [ ] 5.7 Create `deploy/configmap-opencode.yaml`
-- [ ] 5.8 Create `deploy/configmap-malicious-patch.yaml`
-- [ ] 5.9 Create `deploy/attacker-listener.yaml`
-- [ ] 5.10 Create `deploy/secret-api-keys.yaml.example`
+- [x] 5.1 Create `deploy/namespace.yaml`
+- [x] 5.2 Create `deploy/openshell-helm-values.yaml`
+- [x] 5.3 Create `deploy/openshell-policy.yaml`
+- [x] 5.4 Create `deploy/pod-kata-only.yaml`
+- [x] 5.5 Create `deploy/pod-openshell-only.yaml`
+- [x] 5.6 Create `deploy/pod-dual.yaml`
+- [x] 5.7 Create `deploy/configmap-opencode.yaml`
+- [x] 5.8 Create `deploy/configmap-malicious-patch.yaml`
+- [x] 5.9 Create `deploy/attacker-listener.yaml`
+- [x] 5.10 Create `deploy/secret-api-keys.yaml.example`
 
 ## Phase 6: Demo Scripts
 
