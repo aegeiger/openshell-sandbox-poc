@@ -1,0 +1,16 @@
+# KataConfig for OpenShift Sandboxed Containers operator
+#
+# This triggers the operator to install the Kata runtime on worker
+# nodes and creates the 'kata' RuntimeClass automatically.
+#
+# NOTE: Applying this will cause worker nodes to reboot as the
+# Kata runtime is installed.
+---
+apiVersion: kataconfiguration.openshift.io/v1
+kind: KataConfig
+metadata:
+  name: default
+spec:
+  # Install on all worker nodes. To target specific nodes, use
+  # kataConfigPoolSelector with node labels.
+  {}

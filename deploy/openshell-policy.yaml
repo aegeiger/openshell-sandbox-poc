@@ -1,0 +1,37 @@
+# OpenShell sandbox network policy
+#
+# This policy allows ONLY the vLLM inference endpoint.
+# All other outbound network access is denied by default.
+#
+# Applied during sandbox creation with:
+#   openshell sandbox create --policy openshell-policy.yaml ...
+#
+# Or on a running sandbox with:
+#   openshell policy set <sandbox-name> --policy openshell-policy.yaml
+#
+# Reference: https://github.com/NVIDIA/OpenShell/blob/main/examples/sandbox-policy-quickstart/policy.yaml
+
+version: 1
+
+filesystem_policy:
+  include_workdir: true
+  read_only: [/usr, /lib, /proc, /dev/urandom, /etc]
+  read_write: [/sandbox, /tmp, /home, /opt, /dev/null]
+landlock:
+  compatibility: best_effort
+process:
+  run_as_user: sandbox
+  run_as_group: sandbox
+
+network_policies:
+  vllm_inference:
+    name: vllm-inference
+    endpoints:
+      - host: gemma4-svc.vllm.svc.cluster.local
+        port: 8000
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+    binaries:
+      - { path: /usr/bin/curl }
+      - { path: /usr/bin/python3 }

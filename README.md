@@ -35,9 +35,9 @@ serving Gemma4-31b:
 
 | Pod                      | RuntimeClass      | OpenShell | Kata |
 |--------------------------|-------------------|-----------|------|
-| `opencode-kata-only`     | `kata-containers` | No        | Yes  |
+| `opencode-kata-only`     | `kata` | No        | Yes  |
 | `opencode-openshell-only`| default (runc)    | Yes       | No   |
-| `opencode-dual`          | `kata-containers` | Yes       | Yes  |
+| `opencode-dual`          | `kata` | Yes       | Yes  |
 
 ## Quick Start
 
@@ -47,10 +47,10 @@ serving Gemma4-31b:
 
 # 2. Build and push container images
 export REGISTRY=your-registry.example.com
-docker build -t $REGISTRY/openshell-poc/agent-sandbox:latest images/agent-sandbox/
-docker build -t $REGISTRY/openshell-poc/attacker-listener:latest images/attacker-listener/
-docker push $REGISTRY/openshell-poc/agent-sandbox:latest
-docker push $REGISTRY/openshell-poc/attacker-listener:latest
+docker build -f images/agent-sandbox/Dockerfile -t $REGISTRY/openshell-poc-agent-sandbox:latest .
+docker build -t $REGISTRY/openshell-poc-attacker-listener:latest images/attacker-listener/
+docker push $REGISTRY/openshell-poc-agent-sandbox:latest
+docker push $REGISTRY/openshell-poc-attacker-listener:latest
 
 # 3. Deploy everything
 ./demo/setup.sh

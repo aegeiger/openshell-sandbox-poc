@@ -1,0 +1,30 @@
+# MachineConfig to add the veth kernel module to the Kata initramfs
+#
+# The default Kata initramfs shipped with OpenShift Sandboxed Containers
+# lacks the veth driver, which OpenShell requires for network namespace
+# setup inside Kata VMs.
+#
+# This MachineConfig drops an additional dracut config file that adds
+# the veth module. The kata-osbuilder-generate.service picks it up on
+# boot and rebuilds the initramfs with veth included.
+#
+# Targets the kata-oc MachineConfigPool (nodes with Kata installed).
+# Applying this triggers a rolling reboot of kata-oc nodes.
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: kata-oc
+  name: 99-kata-veth-dracut
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+        - path: /usr/libexec/kata-containers/osbuilder/dracut/dracut.conf.d/20-veth.conf
+          mode: 0644
+          overwrite: true
+          contents:
+            source: data:text/plain;charset=utf-8;base64,IyB2ZXRoICh2aXJ0dWFsIGV0aGVybmV0IHBhaXJzKSAtIHJlcXVpcmVkIGJ5IE9wZW5TaGVsbApkcml2ZXJzKz0iIHZldGggIgo=

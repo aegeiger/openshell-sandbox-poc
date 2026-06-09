@@ -1,0 +1,58 @@
+# Attacker listener -- receives exfiltrated data from prompt injection
+#
+# A simple HTTP server that logs all POST bodies to stdout.
+# Check logs with: oc logs -n openshell-poc deployment/attacker-listener
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: attacker-listener
+  namespace: openshell-poc
+  labels:
+    app: attacker-listener
+    app.kubernetes.io/part-of: openshell-sandbox-poc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: attacker-listener
+  template:
+    metadata:
+      labels:
+        app: attacker-listener
+    spec:
+      containers:
+        - name: listener
+          # Replace REGISTRY with your actual container registry
+          image: REGISTRY/openshell-poc-attacker-listener:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9999
+              name: http
+          env:
+            - name: PORT
+              value: "9999"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: attacker-listener
+  namespace: openshell-poc
+  labels:
+    app: attacker-listener
+    app.kubernetes.io/part-of: openshell-sandbox-poc
+spec:
+  selector:
+    app: attacker-listener
+  ports:
+    - port: 9999
+      targetPort: 9999
+      name: http
+  type: ClusterIP

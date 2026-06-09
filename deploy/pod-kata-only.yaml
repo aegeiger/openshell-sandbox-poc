@@ -1,0 +1,65 @@
+# Pod: opencode-kata-only
+#
+# Kata Containers runtime (VM isolation), NO OpenShell.
+# This pod has kernel-layer protection but no application-layer
+# network policy enforcement.
+#
+# Expected results:
+#   Attack 1 (prompt injection exfil): DATA LEAKED
+#   Attack 2 (CVE-2026-31431 escape):  CONTAINED (VM boundary)
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: opencode-kata-only
+  namespace: openshell-poc
+  labels:
+    app: opencode
+    protection: kata-only
+    app.kubernetes.io/part-of: openshell-sandbox-poc
+spec:
+  runtimeClassName: kata
+  containers:
+    - name: agent
+      # Replace REGISTRY with your actual container registry
+      image: REGISTRY/openshell-poc-agent-sandbox:latest
+      imagePullPolicy: Always
+      command: ["sleep", "infinity"]
+      env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: opencode-api-keys
+              key: OPENAI_API_KEY
+              optional: true
+      volumeMounts:
+        - name: workspace
+          mountPath: /home/user/workspace
+        - name: malicious-patch
+          mountPath: /home/user/workspace/malicious.patch
+          subPath: malicious.patch
+          readOnly: true
+        - name: task-prompt
+          mountPath: /home/user/workspace/task-prompt.txt
+          subPath: task-prompt.txt
+          readOnly: true
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "500m"
+        limits:
+          memory: "2Gi"
+          cpu: "2"
+  volumes:
+    - name: workspace
+      emptyDir: {}
+    - name: malicious-patch
+      configMap:
+        name: malicious-patch
+    - name: task-prompt
+      configMap:
+        name: malicious-patch
+        items:
+          - key: task-prompt.txt
+            path: task-prompt.txt
+  restartPolicy: Never

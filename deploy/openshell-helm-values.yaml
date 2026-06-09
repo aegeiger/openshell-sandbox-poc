@@ -1,0 +1,64 @@
+# Helm values for OpenShell on OpenShift with Kata Containers
+#
+# Based on:
+#   https://github.com/bpradipt/OpenShell/blob/kata/docs/kubernetes/openshift-sandboxed-containers.mdx
+#
+# Usage:
+#   helm install openshell oci://ghcr.io/nvidia/openshell/helm-chart \
+#     -n openshell-poc -f openshell-helm-values.yaml
+
+server:
+  # TLS disabled because pkiInitJob is disabled (it fails under SCC)
+  disableTls: true
+  logLevel: info
+
+  # Allow unauthenticated access for this demo (not for production)
+  auth:
+    allowUnauthenticatedUsers: true
+
+  # Do NOT set a default RuntimeClass here -- we need the openshell-only
+  # pod to run on runc (no Kata). The dual pod gets kata via
+  # --driver-config-json at sandbox creation time.
+  defaultRuntimeClassName: ""
+
+  # Kata shim does not support ImageVolume -- force init-container delivery
+  forceInitContainerSideload: true
+
+  # Default sandbox image -- our custom agent image
+  # Overridden by setup.sh --set to inject REGISTRY
+  sandboxImage: "REGISTRY/openshell-poc-agent-sandbox:latest"
+  sandboxImagePullPolicy: "Always"
+
+  # Sandbox namespace -- same as the release namespace
+  sandboxNamespace: ""
+
+supervisor:
+  # Explicit init-container sideload for Kata compatibility
+  sideloadMethod: init-container
+
+# PKI init job fails under SCC -- disable it and generate JWT keys manually
+pkiInitJob:
+  enabled: false
+
+# Sandbox pods require root for the supervisor
+podSecurityContext:
+  fsGroup: 0
+
+securityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  # Don't drop capabilities -- supervisor needs SYS_ADMIN, NET_ADMIN,
+  # SYS_PTRACE, SYSLOG
+  capabilities:
+    drop: []
+
+# NetworkPolicy may not work inside Kata pods
+networkPolicy:
+  enabled: false
+
+# Expose gateway on NodePort for CLI registration
+service:
+  type: NodePort
+
+# Single replica is fine for a demo
+replicaCount: 1

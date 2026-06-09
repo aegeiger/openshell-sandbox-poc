@@ -288,30 +288,30 @@ openshell-sandbox-poc/
 │   └── architecture.md                    # Mermaid diagrams of the full setup
 │
 ├── infra/                                 # Cluster and node setup
-│   ├── README.md                          # Step-by-step IBM Cloud / OCP setup
+│   ├── README.md                          # Step-by-step setup instructions
 │   ├── kata-operator.yaml                 # OpenShift Sandboxed Containers operator
-│   ├── kata-runtimeclass.yaml             # RuntimeClass definition
+│   ├── kata-runtimeclass.yaml             # KataConfig CR
+│   ├── kata-veth-machineconfig.yaml       # MachineConfig for veth (did not work on composefs)
+│   ├── kata-veth-patch-job.yaml           # DaemonSet to patch Kata initramfs for veth
 │   └── verify-kernel.sh                   # Check CVE-2026-31431 vulnerability
 │
 ├── deploy/                                # Kubernetes manifests
 │   ├── namespace.yaml                     # Namespace: openshell-poc
 │   ├── openshell-helm-values.yaml         # Helm values for OpenShell on OCP
 │   ├── openshell-policy.yaml              # OpenShell network policy YAML
+│   ├── openshell-scc.yaml                 # Targeted SCC for OpenShell + Kata
 │   │
 │   ├── pod-kata-only.yaml                 # Pod: Kata runtime, no OpenShell
-│   ├── pod-openshell-only.yaml            # Pod: OpenShell sandbox, default runtime
-│   ├── pod-dual.yaml                      # Pod: OpenShell sandbox + Kata runtime
+│   │                                      # (openshell-only and dual pods created
+│   │                                      #  via 'openshell sandbox create')
 │   │
-│   ├── configmap-opencode.yaml            # OpenCode configuration
-│   ├── configmap-malicious-patch.yaml     # The prompt-injection patch
 │   ├── attacker-listener.yaml             # HTTP listener deployment + service
 │   └── secret-api-keys.yaml.example       # Template for user-provided secrets
 │
 ├── images/                                # Container image definitions
 │   ├── agent-sandbox/
 │   │   ├── Dockerfile                     # OpenCode + Python3 + curl + exploit
-│   │   ├── opencode.json                  # OpenCode config for vLLM
-│   │   └── copy_fail_exp.py               # CVE-2026-31431 exploit
+│   │   └── opencode.json                  # OpenCode config for vLLM
 │   └── attacker-listener/
 │       ├── Dockerfile                     # Python HTTP listener
 │       └── listener.py                    # Logs POST bodies to stdout
@@ -335,6 +335,42 @@ openshell-sandbox-poc/
         ├── colors.sh                      # Terminal colors/formatting
         └── utils.sh                       # Shared helper functions
 ```
+
+> AMENDMENT (2026-06-09): Removed three files from the repo structure:
+> - `deploy/configmap-opencode.yaml` -- OpenCode config is baked into
+>   the Docker image via `images/agent-sandbox/opencode.json`. No pod
+>   manifests referenced this ConfigMap.
+> - `deploy/configmap-malicious-patch.yaml` -- ConfigMap is now created
+>   imperatively by `demo/setup.sh` from the source files in `attacks/`,
+>   avoiding content duplication.
+> - `images/agent-sandbox/copy_fail_exp.py` -- Duplicate of the exploit
+>   in `attacks/attack2-container-escape/`. The Dockerfile builds from
+>   the repo root and COPYs from `attacks/` directly.
+>
+> AMENDMENT (2026-06-11): Major deployment design changes based on the
+> OpenShell OSC integration guide and deployment experience:
+>
+> - `deploy/pod-openshell-only.yaml` and `deploy/pod-dual.yaml` removed.
+>   These pods must be created via `openshell sandbox create` to get the
+>   supervisor + policy proxy. Only `pod-kata-only.yaml` remains as a
+>   raw manifest (it intentionally has no OpenShell protection).
+> - `deploy/openshell-scc.yaml` added -- targeted `openshell-kata` SCC
+>   replacing the blanket `privileged` SCC grant.
+> - `infra/kata-veth-machineconfig.yaml` added but does NOT work on
+>   RHCOS 9.6 with composefs (the /usr path is read-only even after
+>   ostree admin unlock --hotfix).
+> - `infra/kata-veth-patch-job.yaml` added -- DaemonSet that patches the
+>   Kata initramfs via hostPath + chroot. This is the working approach.
+> - RuntimeClass name is `kata` (not `kata-containers`).
+> - `defaultRuntimeClassName` is empty in Helm values. The dual pod gets
+>   `kata` via `--driver-config-json` at sandbox creation time. This
+>   avoids forcing Kata on the openshell-only pod.
+> - Gateway is a StatefulSet, not a Deployment.
+> - `pkiInitJob` is disabled; JWT keys are generated locally via
+>   `openshell-gateway generate-certs --output-dir` and uploaded as a
+>   Secret before the gateway starts.
+> - `setup.sh` manages a port-forward to the gateway for `openshell`
+>   CLI communication.
 
 ---
 
@@ -374,8 +410,10 @@ run-demo.sh:
 
 ## 9. Open Questions (To Be Resolved During Implementation)
 
-1. **AF_ALG sockets in OpenShift SCC:** Does OpenShift's default seccomp
-   profile allow `socket(AF_ALG, ...)`? Almost certainly yes, but verify.
+1. ~~**AF_ALG sockets in OpenShift SCC:**~~ **RESOLVED.**
+   > AMENDMENT (2026-06-11): Not yet tested with the exploit, but AF_ALG
+   > sockets are standard kernel functionality. The `openshell-kata` SCC
+   > does not restrict socket types. Will verify during attack testing.
 
 2. ~~**RHCOS kernel patch status:**~~ **RESOLVED.**
    > AMENDMENT (2026-06-09): Kernel `5.14.0-570.103.1.el9_6` (built
@@ -383,16 +421,31 @@ run-demo.sh:
    > nodes (3 masters, 3 workers) run the same kernel. The `algif_aead`
    > module is builtin. No MachineConfig pinning is needed.
 
-3. **OpenShell + Kata interaction:** The Helm chart supports
-   `server.defaultRuntimeClassName`. Does this work correctly with the
-   OpenShift Sandboxed Containers operator's RuntimeClass?
+3. ~~**OpenShell + Kata interaction:**~~ **RESOLVED.**
+   > AMENDMENT (2026-06-11): Works, but with caveats:
+   > - `defaultRuntimeClassName` must be empty (not `kata`) in Helm values,
+   >   otherwise ALL sandboxes get Kata including the openshell-only pod.
+   > - The dual pod gets Kata via `--driver-config-json` at creation time:
+   >   `'{"kubernetes":{"pod":{"runtime_class_name":"kata"}}}'`
+   > - The Kata initramfs needs the `veth` module for OpenShell networking.
+   >   MachineConfig file drops don't work on RHCOS 9.6 composefs.
+   >   Use `infra/kata-veth-patch-job.yaml` (DaemonSet with hostPath +
+   >   chroot) to patch the initramfs post-install.
+   > - `pkiInitJob` must be disabled; JWT keys generated locally.
+   > - Gateway runs as StatefulSet, not Deployment.
 
 4. **Prompt injection reliability:** Will OpenCode (backed by Gemma4-31b)
    reliably follow the hidden prompt injection in the patch file? The
    injection needs careful crafting. May need iteration.
 
-5. **OpenShell K8s compute driver maturity:** OpenShell's K8s path is
-   labeled "experimental." We may hit rough edges.
+5. ~~**OpenShell K8s compute driver maturity:**~~ **RESOLVED.**
+   > AMENDMENT (2026-06-11): Rough edges confirmed. Key issues encountered:
+   > - `openshell sandbox create` opens an interactive shell by default;
+   >   must use `--no-tty -- sleep infinity` in scripts.
+   > - CLI uses `-g`/`--gateway` not `-n`/`--namespace` for targeting.
+   > - Gateway must be reachable via port-forward if NodePort is blocked.
+   > - The `--driver-config-json` flag is experimental but works for
+   >   setting `runtime_class_name`.
 
 6. ~~**vLLM endpoint networking:**~~ **RESOLVED.**
    > AMENDMENT (2026-06-09): vLLM runs cluster-internally at

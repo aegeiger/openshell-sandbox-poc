@@ -31,7 +31,7 @@
 
 - [x] 3.1 Create `images/agent-sandbox/Dockerfile`
 - [x] 3.2 Create `images/agent-sandbox/opencode.json`
-- [x] 3.3 Copy exploit into `images/agent-sandbox/copy_fail_exp.py`
+- [-] 3.3 ~~Copy exploit into `images/agent-sandbox/copy_fail_exp.py`~~ -- removed: Dockerfile COPYs from `attacks/` directly
 - [x] 3.4 Create `images/attacker-listener/Dockerfile`
 - [x] 3.5 Create `images/attacker-listener/listener.py`
 
@@ -48,10 +48,10 @@
 - [x] 5.2 Create `deploy/openshell-helm-values.yaml`
 - [x] 5.3 Create `deploy/openshell-policy.yaml`
 - [x] 5.4 Create `deploy/pod-kata-only.yaml`
-- [x] 5.5 Create `deploy/pod-openshell-only.yaml`
-- [x] 5.6 Create `deploy/pod-dual.yaml`
-- [x] 5.7 Create `deploy/configmap-opencode.yaml`
-- [x] 5.8 Create `deploy/configmap-malicious-patch.yaml`
+- [-] 5.5 ~~Create `deploy/pod-openshell-only.yaml`~~ -- removed: created via `openshell sandbox create`
+- [-] 5.6 ~~Create `deploy/pod-dual.yaml`~~ -- removed: created via `openshell sandbox create`
+- [-] 5.7 ~~Create `deploy/configmap-opencode.yaml`~~ -- removed: config baked into Docker image
+- [-] 5.8 ~~Create `deploy/configmap-malicious-patch.yaml`~~ -- removed: created imperatively by `demo/setup.sh`
 - [x] 5.9 Create `deploy/attacker-listener.yaml`
 - [x] 5.10 Create `deploy/secret-api-keys.yaml.example`
 
@@ -59,8 +59,8 @@
 
 - [ ] 6.1 Create `demo/lib/colors.sh`
 - [ ] 6.2 Create `demo/lib/utils.sh`
-- [ ] 6.3 Create `demo/setup.sh`
-- [ ] 6.4 Create `demo/teardown.sh`
+- [x] 6.3 Create `demo/setup.sh`
+- [x] 6.4 Create `demo/teardown.sh`
 - [ ] 6.5 Create `demo/run-demo.sh` -- main demo script
 
 ## Phase 7: Final Documentation
@@ -84,10 +84,25 @@
 - ~~The vLLM endpoint URL is TBD~~ **RESOLVED (2026-06-09):**
   `http://gemma4-svc.vllm.svc.cluster.local:8000`, model ID `gemma4-31b`,
   OpenAI-compatible API. ClusterIP service in `vllm` namespace, no route.
-- Container image registry is TBD. Use `REGISTRY/openshell-poc/` as
-  placeholder. The user will provide the actual registry.
+- ~~Container image registry is TBD~~ **RESOLVED (2026-06-11):**
+  `quay.io/egeigerredhat`. Images use flat naming:
+  `quay.io/egeigerredhat/openshell-poc-agent-sandbox:latest` and
+  `quay.io/egeigerredhat/openshell-poc-attacker-listener:latest`.
 - ~~The OpenShift cluster details are TBD~~ **RESOLVED (2026-06-09):**
   OCP 4.21, RHCOS 9.6, 3 masters + 3 workers, all running kernel
   `5.14.0-570.103.1.el9_6` (built 2026-03-24, VULNERABLE to
   CVE-2026-31431). `algif_aead` is builtin. CRI-O 1.34.6.
-- Workers available for Kata: 3 worker nodes, all identical config.
+- Workers available for Kata: workers 1 and 2 (worker-3 is the GPU node
+  with dual MCP roles, Kata installation skipped on it).
+- **Deployment completed (2026-06-11):** All 3 pods running:
+  - `opencode-kata-only`: runtimeClass=kata, no OpenShell
+  - `opencode-openshell-only`: runtimeClass=default, OpenShell sandbox Ready
+  - `opencode-dual`: runtimeClass=kata, OpenShell sandbox Ready
+- **Key deployment learnings:**
+  - MachineConfig file drops to Kata dracut paths don't work on RHCOS 9.6
+    composefs. Use the DaemonSet approach (`kata-veth-patch-job.yaml`).
+  - The `openshell` CLI opens interactive shells by default; use
+    `--no-tty -- sleep infinity` in automation.
+  - Gateway NodePort may not be reachable; use `oc port-forward`.
+  - Agent Sandbox CRDs come from `kubernetes-sigs/agent-sandbox`, not
+    from the OpenShell repo.

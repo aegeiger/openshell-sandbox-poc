@@ -13,9 +13,9 @@ OpenShift Cluster (OCP 4.21)
 │   │   ├── gateway service
 │   │   └── PKI secrets
 │   │
-│   ├── opencode-kata-only pod        [runtimeClass: kata-containers]
+│   ├── opencode-kata-only pod        [runtimeClass: kata]
 │   ├── opencode-openshell-only pod   [runtimeClass: default, OpenShell sandbox]
-│   ├── opencode-dual pod             [runtimeClass: kata-containers, OpenShell sandbox]
+│   ├── opencode-dual pod             [runtimeClass: kata, OpenShell sandbox]
 │   │
 │   └── attacker-listener pod + svc   [receives exfil attempts]
 │

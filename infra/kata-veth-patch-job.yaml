@@ -1,0 +1,112 @@
+# One-shot DaemonSet that patches the Kata initramfs to include the
+# veth kernel module, required by OpenShell's network namespace setup.
+#
+# Uses hostPath mount of / to access the host filesystem directly,
+# and the host's own binaries via chroot to /host.
+#
+# Usage:
+#   oc apply -f infra/kata-veth-patch-job.yaml
+#   oc get pods -n openshift-sandboxed-containers-operator -l app=kata-veth-patch
+#   # After all pods show Running (sleeping), clean up:
+#   oc delete -f infra/kata-veth-patch-job.yaml
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kata-veth-patch
+  namespace: openshift-sandboxed-containers-operator
+  labels:
+    app: kata-veth-patch
+spec:
+  selector:
+    matchLabels:
+      app: kata-veth-patch
+  template:
+    metadata:
+      labels:
+        app: kata-veth-patch
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/kata-oc: ""
+      hostPID: true
+      restartPolicy: Always
+      volumes:
+        - name: host
+          hostPath:
+            path: /
+      containers:
+        - name: patch
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          volumeMounts:
+            - name: host
+              mountPath: /host
+          command:
+            - /host/bin/bash
+            - -c
+            - |
+              set -euo pipefail
+
+              # Use the host's tools via chroot
+              chroot /host /bin/bash -c '
+                set -euo pipefail
+                KERNEL_VER=$(uname -r)
+                INITRD_DIR="/var/cache/kata-containers/osbuilder-images/${KERNEL_VER}"
+                INITRD="${INITRD_DIR}/kata.initrd"
+                VETH_MOD="/lib/modules/${KERNEL_VER}/kernel/drivers/net/veth.ko.xz"
+                WORKDIR="/var/tmp/kata-veth-patch"
+
+                if [ ! -f "${INITRD}" ]; then
+                  echo "[!] Kata initrd not found at ${INITRD}, skipping."
+                  exit 0
+                fi
+
+                if [ ! -f "${VETH_MOD}" ]; then
+                  VETH_MOD="/lib/modules/${KERNEL_VER}/kernel/drivers/net/veth.ko"
+                  if [ ! -f "${VETH_MOD}" ]; then
+                    echo "[!] veth module not found for kernel ${KERNEL_VER}"
+                    exit 1
+                  fi
+                fi
+
+                # Check if already patched
+                if lsinitrd "${INITRD}" 2>/dev/null | grep -q veth; then
+                  echo "[*] veth already present in initramfs, skipping."
+                  exit 0
+                fi
+
+                echo "[*] Patching initramfs to add veth module..."
+                rm -rf "${WORKDIR}"
+                mkdir -p "${WORKDIR}"
+                cd "${WORKDIR}"
+
+                # Unpack
+                zcat "${INITRD}" | cpio -idm 2>/dev/null
+
+                # Add veth module
+                DEST="lib/modules/${KERNEL_VER}/kernel/drivers/net"
+                mkdir -p "${DEST}"
+                cp "${VETH_MOD}" "${DEST}/"
+                echo "[+] Copied $(basename ${VETH_MOD}) into initramfs"
+
+                # Regenerate module dependency files
+                depmod -b . "${KERNEL_VER}" 2>/dev/null || {
+                  # Fallback: manually update modules.dep
+                  if [ -f "lib/modules/${KERNEL_VER}/modules.dep" ]; then
+                    echo "kernel/drivers/net/$(basename ${VETH_MOD}):" >> "lib/modules/${KERNEL_VER}/modules.dep"
+                  fi
+                }
+
+                # Repack
+                cp "${INITRD}" "${INITRD}.bak"
+                find . | cpio -o -H newc 2>/dev/null | gzip > "${INITRD}.new"
+                mv "${INITRD}.new" "${INITRD}"
+
+                rm -rf "${WORKDIR}"
+                echo "[+] Initramfs patched. Backup at ${INITRD}.bak"
+              '
+
+              echo "[+] Patch complete. Sleeping."
+              exec /host/bin/sleep infinity
+          securityContext:
+            privileged: true
+            runAsUser: 0
