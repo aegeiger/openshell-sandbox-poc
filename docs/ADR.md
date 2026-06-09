@@ -152,6 +152,25 @@ No egress filtering exists at the Kata layer. The data is exfiltrated.
    grants the caller root
 4. Running `su` after the exploit gives a root shell
 
+> AMENDMENT (2026-06-11): In the demo, we use a modified exploit
+> (`escape_demo.py`) that targets `/opt/marker.txt` instead of
+> `/usr/bin/su`. This demonstrates the **page-cache escape** primitive
+> rather than privilege escalation:
+>
+> 1. Opens `/opt/marker.txt` read-only (file contains `INTACT`)
+> 2. Uses the Copy Fail primitive to write `PWN!` to offset 0
+> 3. On runc (overlayfs), the page-cache corruption is visible to
+>    OTHER containers sharing the same image layer -- proving a
+>    container escape (cross-container data corruption)
+> 4. On Kata (virtiofs), the page cache is per-VM, so the corruption
+>    is invisible to other containers -- CONTAINED
+>
+> This approach works through `openshell sandbox exec` (with all
+> OpenShell protections active), proving that Landlock, seccomp,
+> `no_new_privs`, and the network proxy cannot prevent kernel-level
+> page-cache corruption. A verification pod launched from the same
+> image on the same node confirms whether the corruption escaped.
+
 ### 5.3 Why This CVE Over CVE-2024-1086
 
 | Criterion               | CVE-2024-1086      | CVE-2026-31431     |
@@ -174,14 +193,19 @@ The exploit operates entirely within the kernel:
   normal crypto operations
 - Landlock restricts filesystem paths but not kernel memory operations
 - The policy proxy only intercepts network egress, not local syscalls
+- `no_new_privs` blocks setuid-based privilege escalation, but does
+  NOT prevent the underlying page-cache write primitive
 
 ### 5.5 Why Kata Blocks It
 
-The exploit runs against the **Kata guest kernel**, not the host kernel:
-- Even if the exploit succeeds, root is gained inside the micro-VM
-- `/proc/1/root/etc/shadow` shows the VM's shadow file, not the host's
-- The host kernel is untouched -- the VM boundary is hardware-enforced
-- The attacker is root of a throwaway VM, not root of the node
+Kata runs each pod inside a VM with its own kernel and filesystem:
+- The container filesystem uses **virtiofs** (FUSE), which has a
+  separate page cache from the host
+- The `splice()` + `AF_ALG` chain operates on the **guest kernel's**
+  page cache, not the host's
+- Page-cache corruption stays inside the VM and is invisible to
+  other containers on the host
+- The host kernel and its page cache are never touched
 
 ### 5.6 Kernel Version Requirement
 
@@ -380,27 +404,31 @@ openshell-sandbox-poc/
 run-demo.sh:
 
 1. Print banner and introduction
-2. Verify prerequisites:
+2. Start port-forward to OpenShell gateway (for openshell sandbox exec)
+3. Verify prerequisites:
    - 3 pods running and ready
    - Attacker listener running
-   - OpenShell gateway healthy
-   - vLLM endpoint reachable
-3. Show OpenShell policy (curl the gateway API or cat the policy YAML)
 
 4. === ATTACK 1: PROMPT INJECTION ===
    For each pod in (kata-only, openshell-only, dual):
-     a. Copy malicious.patch into the pod workspace
-     b. Start OpenCode with task-prompt.txt as input
-     c. Wait for OpenCode to process (with timeout)
-     d. Check attacker-listener logs for received data
-     e. Record result: LEAKED | BLOCKED
+     a. Execute curl to attacker-listener via pod_exec
+        (openshell sandbox exec for protected pods, oc exec for kata-only)
+     b. Check if OpenShell policy proxy blocked the request (policy_denied)
+     c. Check attacker-listener logs for received data
+     d. Record result: DATA LEAKED | BLOCKED
 
 5. === ATTACK 2: CONTAINER ESCAPE (CVE-2026-31431) ===
    For each pod in (kata-only, openshell-only, dual):
-     a. kubectl exec: python3 /opt/copy_fail_exp.py
-     b. kubectl exec: su -c 'cat /proc/1/root/etc/shadow 2>&1 | head -3'
-     c. Compare output against known host shadow entries
-     d. Record result: HOST COMPROMISED | CONTAINED (VM only)
+     a. Drop host page cache (clean state between tests)
+     b. Read /opt/marker.txt (should show "INTACT")
+     c. Run python3 /opt/escape_demo.py via pod_exec
+        (writes "PWN!" to marker.txt page cache)
+     d. Read /opt/marker.txt inside pod (shows if local corruption worked)
+     e. Launch a verification pod (same image, same node, runc)
+     f. Read /opt/marker.txt in verification pod
+        - "PWN!" visible = corruption escaped the container = HOST COMPROMISED
+        - "INTACT" = corruption contained in VM = CONTAINED
+     g. Delete verification pod
 
 6. Print final results matrix (ASCII table)
 7. Print conclusion

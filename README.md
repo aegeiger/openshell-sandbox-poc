@@ -62,6 +62,11 @@ docker push $REGISTRY/openshell-poc-attacker-listener:latest
 ./demo/teardown.sh
 ```
 
+## Sample Output
+
+A sample output from a real demo run on OpenShift 4.21 is available
+at [docs/run.log](docs/run.log).
+
 ## Repo Structure
 
 ```

@@ -99,20 +99,22 @@ sequenceDiagram
     participant User as Demo Script
     participant Pod as Pod Container
     participant Kernel as Kernel
-    participant Host as Host Node
+    participant Verify as Verification Pod
 
-    User->>Pod: python3 copy_fail_exp.py
+    Note over Pod: /opt/marker.txt = "INTACT"
+
+    User->>Pod: python3 /opt/escape_demo.py
     Pod->>Kernel: AF_ALG socket + splice()
-    Kernel->>Kernel: Page-cache write to /usr/bin/su
+    Kernel->>Kernel: Page-cache write "PWN!" to /opt/marker.txt
 
-    Pod->>Pod: su (now corrupted)
-    Pod->>Pod: Got root shell
+    Note over Pod: /opt/marker.txt = "PWN!CT"
 
-    alt No Kata (openshell-only)
-        Pod->>Host: cat /proc/1/root/etc/shadow
-        Note over Host: HOST COMPROMISED<br/>Reading real host files
-    else Has Kata (kata-only, dual)
-        Pod->>Kernel: cat /proc/1/root/etc/shadow
-        Note over Kernel: CONTAINED<br/>Reading VM shadow file,<br/>not host shadow file
+    User->>Verify: Launch new pod (same image, same node)
+    Verify->>Verify: cat /opt/marker.txt
+
+    alt No Kata (openshell-only, overlayfs)
+        Note over Verify: Reads "PWN!CT"<br/>Page-cache corruption escaped<br/>HOST COMPROMISED
+    else Has Kata (kata-only, dual, virtiofs)
+        Note over Verify: Reads "INTACT"<br/>Corruption contained in VM<br/>CONTAINED
     end
 ```

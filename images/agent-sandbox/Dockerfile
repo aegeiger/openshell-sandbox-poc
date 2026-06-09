@@ -26,10 +26,16 @@ COPY images/agent-sandbox/opencode.json /home/user/.config/opencode/config.json
 # Copy the CVE-2026-31431 exploit into /opt for the demo
 # WARNING: This is exploit code for authorized testing only.
 COPY attacks/attack2-container-escape/copy_fail_exp.py /opt/copy_fail_exp.py
+COPY attacks/attack2-container-escape/escape_demo.py /opt/escape_demo.py
 
 # Copy the post-exploit verification script
 COPY attacks/attack2-container-escape/verify-escape.sh /opt/verify-escape.sh
 RUN chmod +x /opt/verify-escape.sh
+
+# Create a marker file for the container escape demo.
+# If the exploit corrupts this file's page cache, the corruption is
+# visible to other containers sharing the same image layer on the host.
+RUN echo "INTACT" > /opt/marker.txt
 
 # Switch back to unprivileged user
 USER user

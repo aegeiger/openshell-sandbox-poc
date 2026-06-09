@@ -57,11 +57,11 @@
 
 ## Phase 6: Demo Scripts
 
-- [ ] 6.1 Create `demo/lib/colors.sh`
-- [ ] 6.2 Create `demo/lib/utils.sh`
+- [x] 6.1 Create `demo/lib/colors.sh`
+- [x] 6.2 Create `demo/lib/utils.sh`
 - [x] 6.3 Create `demo/setup.sh`
 - [x] 6.4 Create `demo/teardown.sh`
-- [ ] 6.5 Create `demo/run-demo.sh` -- main demo script
+- [x] 6.5 Create `demo/run-demo.sh` -- main demo script
 
 ## Phase 7: Final Documentation
 
@@ -85,9 +85,9 @@
   `http://gemma4-svc.vllm.svc.cluster.local:8000`, model ID `gemma4-31b`,
   OpenAI-compatible API. ClusterIP service in `vllm` namespace, no route.
 - ~~Container image registry is TBD~~ **RESOLVED (2026-06-11):**
-  `quay.io/egeigerredhat`. Images use flat naming:
-  `quay.io/egeigerredhat/openshell-poc-agent-sandbox:latest` and
-  `quay.io/egeigerredhat/openshell-poc-attacker-listener:latest`.
+  `${REGISTRY}`. Images use flat naming:
+  `${REGISTRY}/openshell-poc-agent-sandbox:latest` and
+  `${REGISTRY}/openshell-poc-attacker-listener:latest`.
 - ~~The OpenShift cluster details are TBD~~ **RESOLVED (2026-06-09):**
   OCP 4.21, RHCOS 9.6, 3 masters + 3 workers, all running kernel
   `5.14.0-570.103.1.el9_6` (built 2026-03-24, VULNERABLE to

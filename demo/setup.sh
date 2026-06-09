@@ -205,15 +205,16 @@ sed "s|REGISTRY|${REGISTRY}|g" "${REPO_ROOT}/deploy/pod-kata-only.yaml" \
 
 # Pod 2: openshell-only -- created via OpenShell gateway (no Kata)
 # The gateway applies its supervisor, policy proxy, etc.
-# defaultRuntimeClassName is empty, so this gets the default runtime (runc)
-# --no-tty and "-- sleep infinity" prevent interactive shell
+# Background the CLI because it tries to connect interactively.
+# The sandbox pod keeps running after we kill the CLI process.
 info "  Creating opencode-openshell-only (OpenShell sandbox, default runtime)..."
 openshell sandbox create \
     --name opencode-openshell-only \
     --policy "${REPO_ROOT}/deploy/openshell-policy.yaml" \
     --no-tty \
-    -- sleep infinity \
-    || warn "openshell sandbox create failed for openshell-only"
+    -- sleep infinity &
+_OS_PID=$!
+sleep 5
 
 # Pod 3: dual -- created via OpenShell gateway with Kata runtime
 # Use --driver-config-json to explicitly request the kata RuntimeClass
@@ -223,8 +224,15 @@ openshell sandbox create \
     --policy "${REPO_ROOT}/deploy/openshell-policy.yaml" \
     --driver-config-json '{"kubernetes":{"pod":{"runtime_class_name":"kata"}}}' \
     --no-tty \
-    -- sleep infinity \
-    || warn "openshell sandbox create failed for dual"
+    -- sleep infinity &
+_DUAL_PID=$!
+sleep 5
+
+# Kill the backgrounded CLI processes (sandbox pods keep running)
+kill "${_OS_PID}" 2>/dev/null || true
+kill "${_DUAL_PID}" 2>/dev/null || true
+wait "${_OS_PID}" 2>/dev/null || true
+wait "${_DUAL_PID}" 2>/dev/null || true
 
 # --- 13. Wait for pods ---
 
